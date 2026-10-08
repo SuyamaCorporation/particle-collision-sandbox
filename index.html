@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Particle Collision Sandbox</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  canvas { border-radius: 8px; cursor: crosshair; }
+</style>
+</head>
+<body class="bg-gray-950 text-white min-h-screen">
+<div class="max-w-5xl mx-auto p-4">
+  <h1 class="text-2xl font-bold text-center text-fuchsia-400 mb-1">Particle Collision Sandbox</h1>
+  <p class="text-center text-gray-400 text-sm mb-4">Click canvas to spawn particles — watch exotic physics unfold</p>
+
+  <div class="flex flex-wrap gap-4 justify-center">
+    <div>
+      <canvas id="canvas" width="540" height="420" class="bg-gray-900"></canvas>
+      <div class="flex gap-3 mt-2 flex-wrap justify-center text-xs">
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span>Matter (+)</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>Matter (-)</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-yellow-400 inline-block"></span>Antimatter (+)</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-cyan-400 inline-block"></span>Antimatter (-)</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-gray-400 inline-block"></span>Neutron</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-purple-400 inline-block"></span>Heavy</span>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-3 w-56">
+      <div class="bg-gray-800 rounded-xl p-4">
+        <h2 class="font-semibold text-fuchsia-300 mb-3">Spawn Type</h2>
+        <div class="space-y-1.5 text-xs">
+          <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="ptype" value="matter_pos" checked class="accent-red-500"><span class="text-red-400">Matter +</span></label>
+          <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="ptype" value="matter_neg" class="accent-blue-500"><span class="text-blue-400">Matter -</span></label>
+          <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="ptype" value="anti_pos" class="accent-yellow-400"><span class="text-yellow-400">Antimatter +</span></label>
+          <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="ptype" value="anti_neg" class="accent-cyan-400"><span class="text-cyan-400">Antimatter -</span></label>
+          <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="ptype" value="neutron" class="accent-gray-400"><span class="text-gray-300">Neutron</span></label>
+          <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="ptype" value="heavy" class="accent-purple-400"><span class="text-purple-400">Heavy (graviton)</span></label>
+        </div>
+        <div class="mt-3">
+          <label class="text-gray-400 text-xs block mb-1">Initial speed: <span id="speed-val">3</span></label>
+          <input type="range" id="spawn-speed" min="0" max="10" value="3" step="0.5" class="w-full accent-fuchsia-500">
+        </div>
+      </div>
+
+      <div class="bg-gray-800 rounded-xl p-4">
+        <h2 class="font-semibold text-fuchsia-300 mb-3">Physics Rules</h2>
+        <div class="space-y-2 text-xs">
+          <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="annihilate" checked class="accent-fuchsia-500"><span>Matter/Antimatter annihilation</span></label>
+          <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="gravity" checked class="accent-fuchsia-500"><span>Gravity between heavy</span></label>
+          <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="em" checked class="accent-fuchsia-500"><span>Electromagnetic force</span></label>
+          <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="tunnel" class="accent-fuchsia-500"><span>Quantum tunneling</span></label>
+          <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="decay" class="accent-fuchsia-500"><span>Particle decay</span></label>
+        </div>
+      </div>
+
+      <div class="bg-gray-800 rounded-xl p-4">
+        <h2 class="font-semibold text-fuchsia-300 mb-2">Stats</h2>
+        <div class="space-y-1.5 text-xs">
+          <div class="flex justify-between"><span class="text-gray-400">Particles</span><span id="s-count" class="text-white font-bold">0</span></div>
+          <div class="flex justify-between"><span class="text-gray-400">Annihilations</span><span id="s-anni" class="text-yellow-400">0</span></div>
+          <div class="flex justify-between"><span class="text-gray-400">Collisions</span><span id="s-coll" class="text-blue-400">0</span></div>
+          <div class="flex justify-between"><span class="text-gray-400">Energy</span><span id="s-energy" class="text-orange-400">0</span></div>
+          <div class="flex justify-between"><span class="text-gray-400">Decays</span><span id="s-decay" class="text-purple-400">0</span></div>
+        </div>
+        <div class="flex gap-1.5 mt-3">
+          <button onclick="clearAll()" class="flex-1 bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-xs">Clear</button>
+          <button onclick="spawnRandom(20)" class="flex-1 bg-fuchsia-700 hover:bg-fuchsia-600 px-2 py-1 rounded text-xs">Random 20</button>
+        </div>
+      </div>
+
+      <div class="bg-gray-800 rounded-xl p-3">
+        <h2 class="font-semibold text-fuchsia-300 mb-1 text-sm">Events</h2>
+        <div id="event-log" class="text-xs text-gray-400 space-y-0.5 max-h-24 overflow-y-auto"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+const TYPES = {
+  matter_pos:  { color: '#ef4444', charge: 1, anti: false, mass: 1 },
+  matter_neg:  { color: '#3b82f6', charge: -1, anti: false, mass: 1 },
+  anti_pos:    { color: '#facc15', charge: 1, anti: true, mass: 1 },
+  anti_neg:    { color: '#22d3ee', charge: -1, anti: true, mass: 1 },
+  neutron:     { color: '#9ca3af', charge: 0, anti: false, mass: 1.2 },
+  heavy:       { color: '#c084fc', charge: 0, anti: false, mass: 5 },
+};
+
+let particles = [], annihilations = 0, collisions = 0, decays = 0;
+let explosions = [];
+
+function makeParticle(type, x, y, vx, vy) {
+  const t = TYPES[type];
+  return { type, x, y, vx: vx ?? (Math.random()-0.5)*6, vy: vy ?? (Math.random()-0.5)*6,
+    mass: t.mass, charge: t.charge, anti: t.anti, color: t.color,
+    age: 0, alive: true, radius: type === 'heavy' ? 7 : 4,
+    trail: [] };
+}
+
+function clearAll() { particles = []; explosions = []; annihilations = 0; collisions = 0; decays = 0; }
+
+function spawnRandom(n) {
+  const types = Object.keys(TYPES);
+  for (let i = 0; i < n; i++) {
+    const t = types[Math.floor(Math.random()*types.length)];
+    particles.push(makeParticle(t, Math.random()*W, Math.random()*H));
+  }
+}
+
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (W / rect.width);
+  const y = (e.clientY - rect.top) * (H / rect.height);
+  const type = document.querySelector('input[name=ptype]:checked').value;
+  const speed = parseFloat(document.getElementById('spawn-speed').value);
+  const angle = Math.random() * Math.PI * 2;
+  particles.push(makeParticle(type, x, y, Math.cos(angle)*speed, Math.sin(angle)*speed));
+});
+
+document.getElementById('spawn-speed').addEventListener('input', function() {
+  document.getElementById('speed-val').textContent = this.value;
+});
+
+function addExplosion(x, y, color) {
+  explosions.push({ x, y, color, r: 5, alpha: 1 });
+}
+
+function addEvent(msg) {
+  const log = document.getElementById('event-log');
+  const d = document.createElement('div'); d.textContent = msg;
+  log.prepend(d);
+  while (log.children.length > 12) log.removeChild(log.lastChild);
+}
+
+function update() {
+  const doAnnihilate = document.getElementById('annihilate').checked;
+  const doGravity = document.getElementById('gravity').checked;
+  const doEM = document.getElementById('em').checked;
+  const doTunnel = document.getElementById('tunnel').checked;
+  const doDecay = document.getElementById('decay').checked;
+
+  particles.forEach(p => {
+    if (!p.alive) return;
+    p.age++;
+
+    // Trail
+    p.trail.push([p.x, p.y]);
+    if (p.trail.length > 8) p.trail.shift();
+
+    // Forces from other particles
+    particles.forEach(q => {
+      if (!q.alive || p === q) return;
+      const dx = q.x - p.x, dy = q.y - p.y;
+      const dist = Math.sqrt(dx*dx+dy*dy) || 0.01;
+      if (dist < 100) {
+        // EM force
+        if (doEM && p.charge !== 0 && q.charge !== 0) {
+          const force = 0.3 * p.charge * q.charge / (dist * dist);
+          p.vx -= force * dx/dist / p.mass;
+          p.vy -= force * dy/dist / p.mass;
+        }
+        // Gravity for heavy
+        if (doGravity && q.type === 'heavy') {
+          const gforce = 0.8 * q.mass / (dist * dist + 1);
+          p.vx += gforce * dx/dist;
+          p.vy += gforce * dy/dist;
+        }
+      }
+      // Collision + annihilation
+      if (dist < p.radius + q.radius) {
+        collisions++;
+        if (doAnnihilate && p.anti !== q.anti && p.type !== 'neutron' && q.type !== 'neutron' && p.type !== 'heavy' && q.type !== 'heavy') {
+          addExplosion((p.x+q.x)/2, (p.y+q.y)/2, '#fff');
+          addEvent(`Annihilation at (${p.x.toFixed(0)}, ${p.y.toFixed(0)})!`);
+          p.alive = false; q.alive = false;
+          annihilations++;
+          // Spawn gamma rays (neutrons as proxy)
+          for (let i = 0; i < 3; i++) {
+            const a = Math.random()*Math.PI*2;
+            particles.push(makeParticle('neutron', p.x, p.y, Math.cos(a)*8, Math.sin(a)*8));
+          }
+          return;
+        }
+        // Elastic bounce
+        const nx = dx/dist, ny = dy/dist;
+        const relV = (p.vx-q.vx)*nx + (p.vy-q.vy)*ny;
+        if (relV < 0) {
+          const imp = 2 * relV / (p.mass + q.mass);
+          p.vx -= imp * q.mass * nx;
+          p.vy -= imp * q.mass * ny;
+          q.vx += imp * p.mass * nx;
+          q.vy += imp * p.mass * ny;
+        }
+      }
+    });
+
+    // Quantum tunneling
+    if (doTunnel && Math.random() < 0.0005) {
+      p.x = Math.random() * W;
+      p.y = Math.random() * H;
+      p.trail = [];
+      addEvent(`Tunneling! ${p.type}`);
+    }
+
+    // Decay
+    if (doDecay && p.type !== 'neutron' && p.type !== 'heavy' && p.age > 300 + Math.random()*500) {
+      p.alive = false; decays++;
+      addEvent(`Decay: ${p.type}`);
+      const types = Object.keys(TYPES).filter(t => t !== 'heavy');
+      for (let i = 0; i < 2; i++) {
+        const a = Math.random()*Math.PI*2;
+        particles.push(makeParticle(types[Math.floor(Math.random()*types.length)], p.x, p.y, Math.cos(a)*3, Math.sin(a)*3));
+      }
+    }
+
+    // Damping + wall bounce
+    const damping = 0.995;
+    p.vx *= damping; p.vy *= damping;
+    if (p.x < p.radius) { p.x = p.radius; p.vx = Math.abs(p.vx); }
+    if (p.x > W-p.radius) { p.x = W-p.radius; p.vx = -Math.abs(p.vx); }
+    if (p.y < p.radius) { p.y = p.radius; p.vy = Math.abs(p.vy); }
+    if (p.y > H-p.radius) { p.y = H-p.radius; p.vy = -Math.abs(p.vy); }
+
+    p.x += p.vx; p.y += p.vy;
+  });
+
+  particles = particles.filter(p => p.alive).slice(-300);
+
+  explosions.forEach(e => { e.r += 3; e.alpha -= 0.08; });
+  explosions = explosions.filter(e => e.alpha > 0);
+}
+
+function draw() {
+  ctx.fillStyle = 'rgba(3,7,18,0.85)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Explosions
+  explosions.forEach(e => {
+    const grad = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, e.r);
+    grad.addColorStop(0, `rgba(255,255,255,${e.alpha})`);
+    grad.addColorStop(0.4, `rgba(255,200,100,${e.alpha*0.6})`);
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, Math.PI*2); ctx.fill();
+  });
+
+  // Particles
+  particles.forEach(p => {
+    // Trail
+    if (p.trail.length > 1) {
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      p.trail.forEach((pt, i) => {
+        ctx.globalAlpha = (i/p.trail.length) * 0.3;
+        i === 0 ? ctx.moveTo(pt[0], pt[1]) : ctx.lineTo(pt[0], pt[1]);
+      });
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    // Glow
+    const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius*2.5);
+    grd.addColorStop(0, p.color);
+    grd.addColorStop(1, 'transparent');
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = grd;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.radius*2.5, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
+    ctx.fillStyle = p.color;
+    ctx.fill();
+
+    // Anti marker
+    if (p.anti) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.radius+2, 0, Math.PI*2); ctx.stroke();
+    }
+  });
+  ctx.globalAlpha = 1;
+}
+
+function updateStats() {
+  const totalE = particles.reduce((s,p) => s + 0.5*p.mass*(p.vx*p.vx+p.vy*p.vy), 0);
+  document.getElementById('s-count').textContent = particles.length;
+  document.getElementById('s-anni').textContent = annihilations;
+  document.getElementById('s-coll').textContent = collisions;
+  document.getElementById('s-energy').textContent = totalE.toFixed(0);
+  document.getElementById('s-decay').textContent = decays;
+}
+
+function loop() {
+  update(); draw(); updateStats();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
